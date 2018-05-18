@@ -42,6 +42,7 @@ config DRM_SUN4I_BACKEND
 
 config DRM_SUN8I_DW_HDMI
 	tristate "Support for Allwinner version of DesignWare HDMI"
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
 	depends on DRM_SUN4I
 	select DRM_DW_HDMI
 	help
