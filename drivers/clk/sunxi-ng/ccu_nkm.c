@@ -122,6 +122,13 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
+#if 0
+	if (rate < nkm->min_rate)
+		rate = nkm->min_rate;
+	if (rate > nkm->max_rate)
+		rate = nkm->max_rate;
+#endif
+
 	if (nkm->common.features & CCU_FEATURE_FIXED_POSTDIV)
 		rate *= nkm->fixed_post_div;
 
