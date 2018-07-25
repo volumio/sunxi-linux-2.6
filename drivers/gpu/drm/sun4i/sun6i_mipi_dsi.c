@@ -367,8 +367,14 @@ static void sun6i_dsi_inst_init(struct sun6i_dsi *dsi,
 static u16 sun6i_dsi_get_video_start_delay(struct sun6i_dsi *dsi,
 					   struct drm_display_mode *mode)
 {
+	u32 vfp = mode->vtotal - mode->vdisplay - (mode->vtotal - mode->vsync_start);
+	u32 start_delay = mode->vtotal - vfp + 1;
+	if (start_delay > mode->vtotal)
+		start_delay -= mode->vtotal;
+	if (!start_delay)
+		start_delay = 1;
 	//return mode->vtotal - (mode->vsync_end - mode->vdisplay) + 1;
-	return mode->vtotal - mode->vdisplay - 10;
+	return start_delay;
 }
 
 static void sun6i_dsi_setup_burst(struct sun6i_dsi *dsi,
@@ -531,8 +537,8 @@ static void sun6i_dsi_setup_timings(struct sun6i_dsi *dsi,
 	regmap_write(dsi->regs, SUN6I_DSI_BASIC_SIZE0_REG,
 		     SUN6I_DSI_BASIC_SIZE0_VSA(mode->vsync_end -
 					       mode->vsync_start) |
-		     SUN6I_DSI_BASIC_SIZE0_VBP(mode->vsync_start -
-					       mode->vdisplay));
+		     SUN6I_DSI_BASIC_SIZE0_VBP(mode->vtotal -
+					       mode->vsync_end));
 
 	regmap_write(dsi->regs, SUN6I_DSI_BASIC_SIZE1_REG,
 		     SUN6I_DSI_BASIC_SIZE1_VACT(mode->vdisplay) |
@@ -944,9 +950,13 @@ static irqreturn_t sun6i_dsi_handler(int irq, void *private)
 	struct sun6i_dsi *dsi = private;
 	struct sun4i_tcon *tcon = dsi->tcon;
 	unsigned int status;
+	static int cnt;
 
 	regmap_read(dsi->regs, SUN6I_DSI_GINT_REG, &status);
 
+	cnt++;
+	if (!(cnt % 60))
+		pr_info("%s %.8x\n", __func__, status);
 	if (!(status & SUN6I_DSI_GINT_VIDEO_VBLK_INT))
 		return IRQ_NONE;
 
@@ -1220,7 +1230,7 @@ static const struct sun6i_dsi_quirks sun6i_a31_quirks = {
 
 static const struct sun6i_dsi_quirks sun50i_a64_quirks = {
 	.mod_clk_freq = 148500000,
-	.use_dsi_irq = true,
+	//.use_dsi_irq = true,
 };
 
 static const struct of_device_id sun6i_dsi_of_table[] = {

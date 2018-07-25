@@ -1126,7 +1126,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 				   SUN4I_TCON1_CTL_SRC_SEL_MASK,
 				   tcon->id);
 	}
-#if 1
+#if 0
 	/* Test pattern - white */
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 			   SUN4I_TCON0_CTL_SRC_SEL_MASK,
