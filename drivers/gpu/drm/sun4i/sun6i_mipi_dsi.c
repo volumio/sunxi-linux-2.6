@@ -24,12 +24,17 @@
 #include <drm/drm_panel.h>
 
 #include "sun4i_drv.h"
+#include "sun4i_tcon.h"
 #include "sun6i_mipi_dsi.h"
 
 #include <video/mipi_display.h>
 
 #define SUN6I_DSI_CTL_REG		0x000
 #define SUN6I_DSI_CTL_EN			BIT(0)
+
+#define SUN6I_DSI_GINT_REG		0x004
+#define SUN6I_DSI_GINT_VIDEO_VBLK_ENABLE	BIT(2)
+#define SUN6I_DSI_GINT_VIDEO_VBLK_INT		BIT(18)
 
 #define SUN6I_DSI_BASIC_CTL_REG		0x00c
 #define SUN6I_DSI_BASIC_CTL_TRAIL_INV(n)	(((n) & 0xf) << 4)
@@ -695,6 +700,9 @@ static void sun6i_dsi_encoder_enable(struct drm_encoder *encoder)
 	udelay(1000);
 
 	sun6i_dsi_start(dsi, DSI_START_HSD);
+
+	regmap_write(dsi->regs, SUN6I_DSI_GINT_REG,
+		     SUN6I_DSI_GINT_VIDEO_VBLK_ENABLE);
 }
 
 static void sun6i_dsi_encoder_disable(struct drm_encoder *encoder)
@@ -702,6 +710,8 @@ static void sun6i_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct sun6i_dsi *dsi = encoder_to_sun6i_dsi(encoder);
 
 	DRM_DEBUG_DRIVER("Disabling DSI output\n");
+
+	regmap_write(dsi->regs, SUN6I_DSI_GINT_REG, 0);
 
 	if (!IS_ERR(dsi->panel)) {
 		drm_panel_disable(dsi->panel);
@@ -925,6 +935,46 @@ static ssize_t sun6i_dsi_transfer(struct mipi_dsi_host *host,
 	return ret;
 }
 
+static irqreturn_t sun6i_dsi_handler(int irq, void *private)
+{
+	struct sun6i_dsi *dsi = private;
+	struct sun4i_tcon *tcon = dsi->tcon;
+	unsigned int status;
+
+	regmap_read(dsi->regs, SUN6I_DSI_GINT_REG, &status);
+
+	if (!(status & SUN6I_DSI_GINT_VIDEO_VBLK_INT))
+		return IRQ_NONE;
+
+	regmap_update_bits(dsi->regs, SUN6I_DSI_GINT_REG,
+			   SUN6I_DSI_GINT_VIDEO_VBLK_INT,
+			   SUN6I_DSI_GINT_VIDEO_VBLK_INT);
+
+	sun4i_tcon_handle_vblank(tcon);
+
+	return IRQ_HANDLED;
+}
+static int sun6i_dsi_init_irq(struct device *dev, struct sun6i_dsi *dsi)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq, ret;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(dev, "Couldn't retrieve the DSI interrupt\n");
+		return irq;
+	}
+
+	ret = devm_request_irq(dev, irq, sun6i_dsi_handler, 0,
+			       dev_name(dev), dsi);
+	if (ret) {
+		dev_err(dev, "Couldn't request the IRQ\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct mipi_dsi_host_ops sun6i_dsi_host_ops = {
 	.attach		= sun6i_dsi_attach,
 	.detach		= sun6i_dsi_detach,
@@ -945,12 +995,26 @@ static int sun6i_dsi_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct sun4i_drv *drv = drm->dev_private;
 	struct sun6i_dsi *dsi = dev_get_drvdata(dev);
+	struct sun4i_tcon *tcon;
 	int ret;
 
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
 
 	dsi->drv = drv;
+
+	list_for_each_entry(tcon, &drv->tcon_list, list)
+		if (tcon->id == 0)
+			dsi->tcon = tcon;
+
+	if (!dsi->tcon)
+		return -EPROBE_DEFER;
+
+	if (dsi->quirks->use_dsi_irq) {
+		ret = sun6i_dsi_init_irq(dev, dsi);
+		if (ret)
+			return ret;
+	}
 
 	drm_encoder_helper_add(&dsi->encoder,
 			       &sun6i_dsi_enc_helper_funcs);
@@ -1152,6 +1216,7 @@ static const struct sun6i_dsi_quirks sun6i_a31_quirks = {
 
 static const struct sun6i_dsi_quirks sun50i_a64_quirks = {
 	.mod_clk_freq = 148500000,
+	.use_dsi_irq = true,
 };
 
 static const struct of_device_id sun6i_dsi_of_table[] = {

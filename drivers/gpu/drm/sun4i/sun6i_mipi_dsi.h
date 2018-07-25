@@ -38,15 +38,16 @@ struct sun6i_dsi {
 
 	struct device			*dev;
 	struct sun4i_drv		*drv;
+	struct sun4i_tcon		*tcon;
 	struct mipi_dsi_device		*device;
 	struct drm_panel		*panel;
 
 	const struct sun6i_dsi_quirks	*quirks;
-
 };
 
 struct sun6i_dsi_quirks {
 	long	mod_clk_freq;
+	bool	use_dsi_irq;
 };
 
 static inline struct sun6i_dsi *host_to_sun6i_dsi(struct mipi_dsi_host *host)

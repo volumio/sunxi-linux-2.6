@@ -640,12 +640,23 @@ static void sun4i_tcon_finish_page_flip(struct drm_device *dev,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static irqreturn_t sun4i_tcon_handler(int irq, void *private)
+void sun4i_tcon_handle_vblank(struct sun4i_tcon *tcon)
 {
-	struct sun4i_tcon *tcon = private;
 	struct drm_device *drm = tcon->drm;
 	struct sun4i_crtc *scrtc = tcon->crtc;
 	struct sunxi_engine *engine = scrtc->engine;
+
+	drm_crtc_handle_vblank(&scrtc->crtc);
+	sun4i_tcon_finish_page_flip(drm, scrtc);
+
+	if (engine->ops->vblank_quirk)
+		engine->ops->vblank_quirk(engine);
+}
+EXPORT_SYMBOL(sun4i_tcon_handle_vblank);
+
+static irqreturn_t sun4i_tcon_handler(int irq, void *private)
+{
+	struct sun4i_tcon *tcon = private;
 	unsigned int status;
 
 	regmap_read(tcon->regs, SUN4I_TCON_GINT0_REG, &status);
@@ -655,9 +666,6 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 			SUN4I_TCON_GINT0_TCON0_TRI_FINISH_INT)))
 		return IRQ_NONE;
 
-	drm_crtc_handle_vblank(&scrtc->crtc);
-	sun4i_tcon_finish_page_flip(drm, scrtc);
-
 	/* Acknowledge the interrupt */
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GINT0_REG,
 			   SUN4I_TCON_GINT0_VBLANK_INT(0) |
@@ -665,8 +673,7 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 			   SUN4I_TCON_GINT0_TCON0_TRI_FINISH_INT,
 			   0);
 
-	if (engine->ops->vblank_quirk)
-		engine->ops->vblank_quirk(engine);
+	sun4i_tcon_handle_vblank(tcon);
 
 	return IRQ_HANDLED;
 }
