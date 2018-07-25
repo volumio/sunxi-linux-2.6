@@ -380,8 +380,12 @@ static void sun6i_dsi_setup_burst(struct sun6i_dsi *dsi,
 	if (device->mode_flags & MIPI_DSI_MODE_VIDEO_BURST) {
 		unsigned int bpp = mipi_dsi_pixel_format_to_bpp(device->format);
 		u32 line_num, edge0, edge1, sync_point = 40;
-		/* FIXME: we need actual tcon_div here */
-		u32 tcon_div = 6;
+		unsigned long dclk_rate, dclk_parent_rate;
+		u32 tcon_div;
+
+		dclk_rate = clk_get_rate(dsi->tcon->dclk);
+		dclk_parent_rate = clk_get_rate(clk_get_parent(dsi->tcon->dclk));
+		tcon_div = dclk_parent_rate / dclk_rate;
 
 		line_num = mode->htotal * bpp / (8 * device->lanes);
 		edge1 = sync_point + (mode->hdisplay + mode->htotal - mode->hsync_start + 20) * bpp / (8 * device->lanes);
