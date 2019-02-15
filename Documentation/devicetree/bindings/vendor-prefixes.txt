@@ -267,6 +267,7 @@ netron-dy	Netron DY
 netxeon		Shenzhen Netxeon Technology CO., LTD
 nexbox	Nexbox
 nextthing	Next Thing Co.
+neweast		Guangdong Neweast Optoelectronics CO., LTD
 newhaven	Newhaven Display International
 ni	National Instruments
 nintendo	Nintendo
