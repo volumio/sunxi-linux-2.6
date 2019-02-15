@@ -1,0 +1,7 @@
+BOE HB140WX1-501 14" WXGA (1366x768) TFT LCD panel
+
+Required properties:
+- compatible: should be "boe,hb140wx1-501"
+
+This binding is compatible with the edp-connector binding, which is specified
+in edp-connector.txt in this display/connectors directory.
