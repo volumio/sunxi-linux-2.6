@@ -1,0 +1,7 @@
+NewEast Optoelectronics CO., LTD WJFH116008A 11.6" 1920x1080 TFT LCD panel
+
+Required properties:
+- compatible: should be "neweast,wjfh116008a"
+
+This binding is compatible with the edp-connector binding, which is specified
+in edp-connector.txt in this display/connector directory.
