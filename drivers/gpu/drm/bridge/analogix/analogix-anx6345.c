@@ -316,6 +316,13 @@ static void anx6345_poweron(struct anx6345 *anx6345)
 
 	gpiod_set_value_cansleep(anx6345->gpiod_reset, 1);
 
+	/* Reset */
+	anx6345_set_bits(anx6345->map[I2C_IDX_TXCOM], SP_RESET_CTRL1_REG,
+			 SP_HW_RST);
+	usleep_range(100000, 110000);
+	anx6345_clear_bits(anx6345->map[I2C_IDX_TXCOM], SP_RESET_CTRL1_REG,
+			   SP_HW_RST);
+
 	/* Power on registers module */
 	anx6345_set_bits(anx6345->map[I2C_IDX_TXCOM], SP_POWERDOWN_CTRL_REG,
 			 SP_HDCP_PD | SP_AUDIO_PD | SP_VIDEO_PD | SP_LINK_PD);
