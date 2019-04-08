@@ -49,7 +49,6 @@
 #include <dt-bindings/reset/sun50i-a64-ccu.h>
 #include <dt-bindings/reset/sun8i-de2.h>
 #include <dt-bindings/reset/sun8i-r-ccu.h>
-#include <dt-bindings/thermal/thermal.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -80,52 +79,6 @@
 		};
 	};
 
-	cpu0_opp_table: opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp-648000000 {
-			opp-hz = /bits/ 64 <648000000>;
-			opp-microvolt = <1040000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-816000000 {
-			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1100000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-912000000 {
-			opp-hz = /bits/ 64 <912000000>;
-			opp-microvolt = <1120000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-960000000 {
-			opp-hz = /bits/ 64 <960000000>;
-			opp-microvolt = <1160000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-1008000000 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1200000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-1056000000 {
-			opp-hz = /bits/ 64 <1056000000>;
-			opp-microvolt = <1240000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-1104000000 {
-			opp-hz = /bits/ 64 <1104000000>;
-			opp-microvolt = <1260000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-		opp-1152000000 {
-			opp-hz = /bits/ 64 <1152000000>;
-			opp-microvolt = <1300000>;
-			clock-latency-ns = <244144>; /* 8 32k periods */
-		};
-	};
-
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -136,10 +89,6 @@
 			reg = <0>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu CLK_CPUX>;
-			clock-names = "cpu";
-			operating-points-v2 = <&cpu0_opp_table>;
-			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -148,7 +97,6 @@
 			reg = <1>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu2: cpu@2 {
@@ -157,7 +105,6 @@
 			reg = <2>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		cpu3: cpu@3 {
@@ -166,7 +113,6 @@
 			reg = <3>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
 		L2: l2-cache {
@@ -194,6 +140,15 @@
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		clock-output-names = "ext-osc32k";
+	};
+
+	pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
 	psci {
@@ -225,7 +180,7 @@
 		};
 	};
 
-	sound_spdif {
+	sound_spdif: sound_spdif {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "On-board SPDIF";
 
@@ -243,63 +198,8 @@
 		compatible = "linux,spdif-dit";
 	};
 
-	thermal-zones {
-		cpu_thermal: cpu0-thermal {
-			/* milliseconds */
-			polling-delay-passive = <250>;
-			polling-delay = <1000>;
-			thermal-sensors = <&ths 0>;
-
-			cooling-maps {
-				map0 {
-					trip = <&cpu_alert0>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-				};
-				map1 {
-					trip = <&cpu_alert1>;
-					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
-				};
-			};
-			trips {
-				cpu_alert0: cpu_alert0 {
-					/* milliCelsius */
-					temperature = <75000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-
-				cpu_alert1: cpu_alert1 {
-					/* milliCelsius */
-					temperature = <90000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-
-				cpu_crit: cpu_crit {
-					/* milliCelsius */
-					temperature = <110000>;
-					hysteresis = <2000>;
-					type = "critical";
-				};
-			};
-		};
-		gpu0_thermal: gpu0-thermal {
-			/* milliseconds */
-			polling-delay-passive = <250>;
-			polling-delay = <1000>;
-			thermal-sensors = <&ths 1>;
-		};
-		gpu1_thermal: gpu1-thermal {
-			/* milliseconds */
-			polling-delay-passive = <250>;
-			polling-delay = <1000>;
-			thermal-sensors = <&ths 2>;
-		};
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
-		allwinner,sun50i-a64-unstable-timer;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14
@@ -459,6 +359,12 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 					reg = <1>;
+
+					tcon0_out_dsi: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&dsi_in_tcon0>;
+						allwinner,tcon-channel = <1>;
+					};
 				};
 			};
 		};
@@ -658,6 +564,17 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
+			csi_pins: csi-pins {
+				pins = "PE0", "PE2", "PE3", "PE4", "PE5", "PE6",
+				       "PE7", "PE8", "PE9", "PE10", "PE11";
+				function = "csi";
+			};
+
+			csi_mclk_pin: csi-mclk {
+				pins = "PE1";
+				function = "csi";
+			};
+
 			i2c0_pins: i2c0_pins {
 				pins = "PH0", "PH1";
 				function = "i2c0";
@@ -668,15 +585,31 @@
 				function = "i2c1";
 			};
 
-			lcd_rgb666_pins: lcd-rgb666 {
-				pins = "PD0", "PD1", "PD2", "PD3", "PD4",
-				       "PD5", "PD6", "PD7", "PD8", "PD9",
-				       "PD10", "PD11", "PD12", "PD13",
-				       "PD14", "PD15", "PD16", "PD17",
-				       "PD18", "PD19", "PD20", "PD21";
-				function = "lcd0";
+			i2s0_mclk: i2s0@0 {
+				pins = "PB3";
+				function = "i2s0";
 			};
-
+	
+			i2s0_bclk: i2s0@1 {
+				pins = "PB5";
+				function = "i2s0";
+			};
+	
+			i2s0_lrclk: i2s0@2 {
+				pins = "PB4";
+				function = "i2s0";
+			};
+	
+			i2s0_sdo0: i2s0@4 {
+				pins = "PB6";
+				function = "i2s0";
+			};
+	
+			i2s0_sdi: i2s0@5 {
+				pins = "PB7";
+				function = "i2s0";
+			};
+	
 			mmc0_pins: mmc0-pins {
 				pins = "PF0", "PF1", "PF2", "PF3",
 				       "PF4", "PF5";
@@ -824,6 +757,19 @@
 			status = "disabled";
 		};
 
+		i2s2: i2s@1c22800 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun8i-h3-i2s";
+			reg = <0x01c22800 0x400>;
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_I2S2>, <&ccu CLK_I2S2>;
+			clock-names = "apb", "mod";
+			dmas = <&dma 27>;
+			resets = <&ccu RST_BUS_I2S2>;
+			dma-names = "tx";
+			status = "disabled";
+		};
+
 		dai: dai@1c22c00 {
 			#sound-dai-cells = <0>;
 			compatible = "allwinner,sun50i-a64-codec-i2s";
@@ -846,30 +792,6 @@
 			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;
 			clock-names = "bus", "mod";
 			status = "disabled";
-		};
-
-		i2s2: i2s@1c22800 {
-			#sound-dai-cells = <0>;
-			compatible = "allwinner,sun8i-h3-i2s";
-			reg = <0x01c22800 0x400>;
-			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_I2S2>, <&ccu CLK_I2S2>;
-			clock-names = "apb", "mod";
-			dmas = <&dma 27>;
-			resets = <&ccu RST_BUS_I2S2>;
-			dma-names = "tx";
-			status = "disabled";
-		};
-
-		ths: thermal-sensor@1c25000 {
-			compatible = "allwinner,sun50i-a64-ths";
-			reg = <0x01c25000 0x100>;
-			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&ccu CLK_BUS_THS>, <&ccu CLK_THS>;
-			clock-names = "bus", "mod";
-			resets = <&ccu RST_BUS_THS>;
-			#io-channel-cells = <0>;
-			#thermal-sensor-cells = <1>;
 		};
 
 		uart0: serial@1c28000 {
@@ -1055,6 +977,61 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwm_pin>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		dsi: dsi@1ca0000 {
+			compatible = "allwinner,sun50i-a64-mipi-dsi",
+				     "allwinner,sun6i-a31-mipi-dsi";
+			reg = <0x01ca0000 0x1000>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_MIPI_DSI>,
+				 <&ccu CLK_DSI_DPHY>;
+			clock-names = "bus", "mod";
+			resets = <&ccu RST_BUS_MIPI_DSI>;
+			phys = <&dphy>;
+			phy-names = "dphy";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+
+					dsi_in_tcon0: endpoint {
+						remote-endpoint = <&tcon0_out_dsi>;
+					};
+				};
+			};
+		};
+
+		dphy: d-phy@1ca1000 {
+			compatible = "allwinner,sun50i-a64-mipi-dphy",
+				     "allwinner,sun6i-a31-mipi-dphy";
+			reg = <0x01ca1000 0x1000>;
+			clocks = <&ccu CLK_BUS_MIPI_DSI>,
+				 <&ccu CLK_DSI_DPHY>;
+			clock-names = "bus", "mod";
+			resets = <&ccu RST_BUS_MIPI_DSI>;
+			status = "disabled";
+			#phy-cells = <0>;
+		};
+
+		csi: csi@1cb0000 {
+			compatible = "allwinner,sun50i-a64-csi";
+			reg = <0x01cb0000 0x1000>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_CSI>,
+				 <&ccu CLK_CSI_SCLK>,
+				 <&ccu CLK_DRAM_CSI>;
+			clock-names = "bus", "mod", "ram";
+			resets = <&ccu RST_BUS_CSI>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&csi_pins>;
 			status = "disabled";
 		};
 

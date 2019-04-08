@@ -46,6 +46,7 @@
 /dts-v1/;
 
 #include "sun50i-a64-sopine.dtsi"
+#include <dt-bindings/pwm/pwm.h>
 
 / {
 	model = "SoPine with baseboard";
@@ -72,11 +73,42 @@
 		};
 	};
 
+	/* This should be a es9023 but this driver should work */
+	pcm5102: pcm510x {
+	   		compatible = "ti,pcm5102a";
+	   		pcm510x,format = "i2s";
+	   		#sound-dai-cells = <0>;
+	   };
+	
+		sound_i2s {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+			simple-audio-card,mclk-fs = <256>;
+
+			simple-audio-card,cpu {
+				sound-dai = <&i2s0>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+			};
+
+			simple-audio-card,codec {
+			sound-dai = <&pcm5102>;
+			};
+	};
+	
 	reg_vcc1v8: vcc1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc1v8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+	};
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&r_pwm 0 50000 PWM_POLARITY_INVERTED>;
+		brightness-levels = <1 2 4 8 16 32 64 128 512>;
+		default-brightness-level = <8>;
+		enable-gpios = <&pio 7 10 GPIO_ACTIVE_HIGH>; /* LCD-BL-EN: PH10 */
 	};
 };
 
@@ -85,7 +117,7 @@
 };
 
 &battery_power_supply {
-	status = "okay";
+	status = "disabled";
 };
 
 &codec {
@@ -96,15 +128,52 @@
 	status = "okay";
 };
 
-&cpu0 {
-	cpu-supply = <&reg_dcdc2>;
-};
-
 &dai {
 	status = "okay";
 };
 
+&spdif {
+		status = "okay";
+};
+	
+&spdif_out {
+	status = "okay";
+};
+	
+&i2s0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s0_bclk>, <&i2s0_lrclk>, <&i2s0_mclk>, <&i2s0_sdo0>;
+	status = "okay";
+};
+
 &de {
+	status = "okay";
+};
+
+&dphy {
+	status = "okay";
+};
+
+
+&dsi {
+	vcc-dsi-supply = <&reg_dldo1>;		/* VCC3V3-DSI */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	panel@0 {
+		compatible = "feiyang,fy07024di26a30d";
+		reg = <0>;
+		avdd-supply = <&reg_dc1sw>;	/* VCC-LCD */
+		dvdd-supply = <&reg_dldo2>;	/* VCC-MIPI */
+		reset-gpios = <&pio 3 24 GPIO_ACTIVE_HIGH>; /* LCD-RST: PD24 */
+		backlight = <&backlight>;
+	};
+};
+
+&r_pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&r_pwm_pin>;
 	status = "okay";
 };
 
@@ -127,7 +196,7 @@
 
 &hdmi {
 	hvcc-supply = <&reg_dldo1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi_out {
@@ -136,14 +205,31 @@
 	};
 };
 
-&i2c0 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c0_pins>;
-		status = "okay";
+&reg_ldo_io0 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-ctp";
+	status = "okay";
 };
-	
-&i2c0_pins {
-		bias-pull-up;
+
+&i2c0 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&i2c0_pins>;
+    status = "okay";
+
+    gt911@5d {
+        compatible = "goodix,gt911";
+        reg = <0x5d>;
+		AVDD28-supply = <&reg_ldo_io0>;			/* VCC-CTP: GPIO0-LDO */
+        /*pinctrl-names = "default";
+        pinctrl-0 = <&gt911_irq_pin>, <&gt911_reset_pin>;*/
+		interrupt-parent = <&pio>;
+		interrupts = <7 4 IRQ_TYPE_EDGE_FALLING>;
+        irq-gpios = <&pio 7 4 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>;
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <600>;
+    };
 };
 
 &i2c1 {
@@ -155,11 +241,23 @@
 &i2c1_pins {
 		bias-pull-up;
 };
-
-
+	
 &i2s2 {
 	status = "okay";
 };
+
+&pio {
+    gt911_irq_pin: gt911_irq_pin {
+        pins = "PH4";
+        function = "irq";
+    };
+
+    gt911_reset_pin: gt911_reset_pin {
+        pins = "PH11";
+        function = "gpio_out";
+    };
+};
+
 
 &mdio {
 	ext_rgmii_phy: ethernet-phy@1 {
@@ -224,6 +322,10 @@
 	vcc-hdmi-supply = <&reg_dldo1>;
 };
 
+&sound_spdif {
+	status = "okay";
+};
+
 &sound {
 	simple-audio-card,aux-devs = <&codec_analog>;
 	simple-audio-card,widgets = "Microphone", "Microphone Jack",
@@ -235,7 +337,7 @@
 			"AIF1 Slot 0 Left ADC", "Left ADC",
 			"AIF1 Slot 0 Right ADC", "Right ADC",
 			"MIC2", "Microphone Jack";
-	status = "okay";
+	status = "disabled";
 };
 
 &sound_hdmi {
@@ -248,20 +350,6 @@
 	status = "okay";
 };
 
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins>, <&uart1_rts_cts_pins>;
-	status = "okay";
-
-	bluetooth {
-		compatible = "realtek,rtl8723bs-bt";
-		reset-gpios = <&r_pio 0 4 GPIO_ACTIVE_LOW>; /* PL4 */
-		device-wake-gpios = <&r_pio 0 5 GPIO_ACTIVE_HIGH>; /* PL5 */
-		host-wake-gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>; /* PL6 */
-		firmware-postfix = "pine64";
-	};
-};
-
 &usb_otg {
 	dr_mode = "host";
 	status = "okay";
@@ -269,4 +357,12 @@
 
 &usbphy {
 	status = "okay";
+};
+
+&tcon1 {
+	status = "disabled";
+};
+
+&hdmi_phy {
+	status = "disabled";
 };

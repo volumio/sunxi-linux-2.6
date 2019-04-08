@@ -13,11 +13,17 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_mipi_dsi.h>
 
+#include <linux/regulator/consumer.h>
+
 struct sun6i_dphy {
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
 	struct regmap		*regs;
 	struct reset_control	*reset;
+};
+
+struct sun6i_dsi_variant {
+	bool			has_mod_clk;
 };
 
 struct sun6i_dsi {
@@ -28,13 +34,16 @@ struct sun6i_dsi {
 	struct clk		*bus_clk;
 	struct clk		*mod_clk;
 	struct regmap		*regs;
+	struct regulator	*regulator;
 	struct reset_control	*reset;
 	struct sun6i_dphy	*dphy;
 
 	struct device		*dev;
 	struct sun4i_drv	*drv;
+	struct sun4i_tcon	*tcon;
 	struct mipi_dsi_device	*device;
 	struct drm_panel	*panel;
+	const struct sun6i_dsi_variant	*variant;
 };
 
 static inline struct sun6i_dsi *host_to_sun6i_dsi(struct mipi_dsi_host *host)
@@ -61,3 +70,4 @@ int sun6i_dphy_power_off(struct sun6i_dphy *dphy);
 int sun6i_dphy_exit(struct sun6i_dphy *dphy);
 
 #endif /* _SUN6I_MIPI_DSI_H_ */
+
